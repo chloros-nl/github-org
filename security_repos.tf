@@ -14,25 +14,10 @@ locals {
   security_managed_repos = toset(["topos", "github-org"])
 }
 
-# Config-driven import: CI performs the import on apply (keeps CI the sole state
-# writer — no local `terraform import`). Safe to remove after the first apply.
-import {
-  for_each = local.security_managed_repos
-  to       = github_repository.managed[each.key]
-  id       = each.key
-}
-
-import {
-  for_each = local.security_managed_repos
-  to       = github_repository_vulnerability_alerts.managed[each.key]
-  id       = each.key
-}
-
-import {
-  for_each = local.security_managed_repos
-  to       = github_repository_dependabot_security_updates.managed[each.key]
-  id       = each.key
-}
+# (Resources were adopted via config-driven `import` blocks on first apply; those
+# blocks have been removed now that the resources are in state. To adopt another
+# existing repo, add it to local.security_managed_repos with a temporary import
+# block, or `terraform import` each address.)
 
 resource "github_repository" "managed" {
   for_each = local.security_managed_repos
