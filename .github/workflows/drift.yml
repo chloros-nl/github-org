@@ -1,0 +1,107 @@
+name: terraform-drift
+
+# Keeps the live chloros-nl org in sync with this repo. On a schedule it
+# detects drift (someone changed a setting in the UI) and reconciles it back
+# to the committed config, then records what it corrected in a tracking issue.
+
+on:
+  schedule:
+    - cron: "17 6 * * *" # daily, 06:17 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: write # commit reconciled state back
+  issues: write # open/update the drift tracking issue
+
+# Shared with terraform.yml (repo-wide group): never let a drift reconcile and
+# a push apply write state at the same time.
+concurrency:
+  group: terraform-state
+  cancel-in-progress: false
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate org admin token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ vars.TF_APP_ID }}
+          private-key: ${{ secrets.TF_APP_PRIVATE_KEY }}
+          owner: chloros-nl
+
+      - name: Export token for Terraform
+        run: echo "GITHUB_TOKEN=${{ steps.app-token.outputs.token }}" >> "$GITHUB_ENV"
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.15.6
+
+      - run: terraform init
+
+      # exit 0 = in sync, 2 = drift, 1 = error.
+      - name: Detect drift
+        id: plan
+        run: |
+          set +e
+          terraform plan -detailed-exitcode -no-color -input=false -out=drift.tfplan > plan.txt 2>&1
+          code=$?
+          set -e
+          echo "exitcode=$code" >> "$GITHUB_OUTPUT"
+          sed -n '1,400p' plan.txt
+          if [ "$code" -eq 1 ]; then
+            echo "::error::terraform plan failed"; exit 1
+          fi
+
+      - name: Reconcile drift
+        id: apply
+        if: steps.plan.outputs.exitcode == '2'
+        run: terraform apply -auto-approve -input=false drift.tfplan
+
+      - name: Commit reconciled state
+        if: steps.apply.outcome == 'success'
+        run: |
+          if git diff --quiet -- terraform.tfstate; then
+            echo "State unchanged."; exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add terraform.tfstate
+          git commit -m "chore(ci): reconcile org drift, update state [skip ci]"
+          git push
+
+      # Record drift in a single rolling tracking issue (comment if one is open,
+      # otherwise create). Uses the default Actions token (has issues:write).
+      - name: Record drift in tracking issue
+        if: always() && steps.plan.outputs.exitcode == '2'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "${{ steps.apply.outcome }}" = "success" ]; then
+            status="✅ reconciled automatically — the org was pulled back to match the committed config."
+          else
+            status="⚠️ reconcile FAILED — manual intervention needed."
+          fi
+          {
+            echo "Drift detected on \`chloros-nl\` at $(date -u +%FT%TZ) by [run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})."
+            echo
+            echo "**Outcome:** $status"
+            echo
+            echo "<details><summary>terraform plan</summary>"
+            echo
+            echo '```'
+            sed -n '1,300p' plan.txt
+            echo '```'
+            echo "</details>"
+          } > body.md
+
+          existing=$(gh issue list --label terraform-drift --state open --json number --jq '.[0].number')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body-file body.md
+          else
+            gh label create terraform-drift --color B60205 --description "Detected org configuration drift" 2>/dev/null || true
+            gh issue create --title "Terraform drift detected on chloros-nl" --label terraform-drift --body-file body.md
+          fi

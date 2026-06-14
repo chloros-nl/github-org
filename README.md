@@ -22,6 +22,7 @@ and left to each repo.
 | `teams.tf` | Teams + memberships (org-level) |
 | `outputs.tf` | Convenience outputs |
 | `.github/workflows/terraform.yml` | CI: fmt/validate/plan on PR, apply on main |
+| `.github/workflows/drift.yml` | Scheduled drift detection + auto-reconcile |
 
 ## Prerequisites
 
@@ -125,6 +126,23 @@ with `action=apply`), CI runs `terraform apply` and commits the updated
   write state at once. Git provides no real lock — this group is the guard.
 - If you ever add a resource whose state *does* hold a secret, stop committing
   state and switch to the encrypted remote backend stub in `versions.tf`.
+
+## Keeping the org in sync (drift)
+
+`drift.yml` runs daily (06:17 UTC, plus manual `workflow_dispatch`) and keeps
+the live org matching this repo — GitOps style:
+
+1. `terraform plan -detailed-exitcode` — exit `0` = in sync, `2` = drift.
+2. On drift it **auto-reconciles** (`terraform apply`), pulling the org back to
+   the committed config, and commits the updated state.
+3. It records every correction in a single rolling **`terraform-drift`** tracking
+   issue (with the plan), so a UI change that gets reverted is auditable. If a
+   reconcile *fails*, the issue says so and the run fails.
+
+So a setting changed by hand in the GitHub UI is reverted within a day. To make
+an intended change, edit the `.tf`/`.tfvars` here — never the UI. To switch to
+**alert-only** (notify, don't auto-fix), delete the `Reconcile drift` /
+`Commit reconciled state` steps; the issue step still reports.
 
 ## Limits
 
