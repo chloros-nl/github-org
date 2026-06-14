@@ -39,6 +39,7 @@ jobs:
       - uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.15.6
+          terraform_wrapper: false # wrapper swallows -detailed-exitcode
 
       - run: terraform init
 
@@ -50,6 +51,7 @@ jobs:
           terraform plan -detailed-exitcode -no-color -input=false -out=drift.tfplan > plan.txt 2>&1
           code=$?
           set -e
+          echo "plan exit code: $code"
           echo "exitcode=$code" >> "$GITHUB_OUTPUT"
           sed -n '1,400p' plan.txt
           if [ "$code" -eq 1 ]; then
