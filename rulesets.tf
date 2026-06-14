@@ -5,6 +5,9 @@
 # feature"). Gated by var.paid_plan_features_enabled: while that is false this
 # creates nothing (no API call), even if organization_rulesets is populated.
 # Flip the flag to true after upgrading, then merge to main (CI applies).
+#
+# While the flag is false, repo_rulesets.tf applies the SAME rule definitions
+# per-repo as a free fallback. Exactly one path is active at a time.
 
 resource "github_organization_ruleset" "this" {
   for_each = var.paid_plan_features_enabled ? var.organization_rulesets : {}

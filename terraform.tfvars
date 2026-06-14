@@ -40,6 +40,11 @@ organization_rulesets = {
     target        = "branch"
     include_refs  = ["~DEFAULT_BRANCH"] # the default branch of every repo
     include_repos = ["~ALL"]
+    # Exclude the repo hosting this config: CI pushes state straight to its
+    # default branch as github-actions[bot], so a require_pull_request rule
+    # there would block the state commit. Honored by BOTH the org-ruleset
+    # (paid) and per-repo fallback (free) paths.
+    exclude_repos = ["github-org"]
 
     require_pull_request            = true
     required_approving_reviews      = 0 # bump to 1+ once there's >1 member

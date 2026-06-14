@@ -157,6 +157,12 @@ variable "organization_rulesets" {
   default = {}
 }
 
+variable "fallback_excluded_repos" {
+  description = "Repos to skip in the FREE per-repo ruleset fallback (paid_plan_features_enabled=false), in addition to each ruleset's own exclude_repos. Defaults to the repo hosting this config, because CI pushes state straight to its default branch and a require_pull_request rule there would block it."
+  type        = list(string)
+  default     = ["github-org"]
+}
+
 variable "teams" {
   description = "Teams managed by Terraform, keyed by team name. Org-level; repo access grants are intentionally out of scope."
   type = map(object({

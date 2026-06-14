@@ -19,6 +19,7 @@ and left to each repo.
 | `org.tf` | `github_organization_settings` (policy + new-repo security defaults) |
 | `actions.tf` | `github_actions_organization_permissions` (org-wide Actions policy) |
 | `rulesets.tf` | `github_organization_ruleset` (org-wide branch rules — **paid**, gated) |
+| `repo_rulesets.tf` | `github_repository_ruleset` per repo (free fallback, active when the paid flag is off) |
 | `teams.tf` | Teams + memberships (org-level) |
 | `outputs.tf` | Convenience outputs |
 | `.github/workflows/terraform.yml` | CI: fmt/validate/plan on PR, apply on main |
@@ -48,8 +49,11 @@ The org resources are **already imported and recorded in the committed
 cd ~/private/github-org
 export GITHUB_TOKEN=<token with admin:org>   # only needed for a local plan
 terraform init
-terraform plan   # reads committed state; should report: No changes
+terraform plan   # reads committed state; No changes in steady state
 ```
+
+(CI commits state after every apply, so a clone is in sync. Right after a config
+change merges, the first plan may show the pending adds until CI applies them.)
 
 The one-time bootstrap that imported the existing org (`make import-org` /
 `make import-actions`) has already been run; re-running it now errors with
@@ -92,9 +96,45 @@ paid_plan_features_enabled = false   # flip to true after upgrading to Team
   conversation resolution; org admins can bypass). While the flag is `false`,
   Terraform makes **no rulesets API call**, so there's no 403.
 
-To activate: upgrade the org to Team, set `paid_plan_features_enabled = true`,
-then commit and merge to `main` — CI applies it (don't `terraform apply`
-locally; see "State").
+### Free fallback: same protection, applied per-repo
+
+So you get branch protection *now*, on Free, `repo_rulesets.tf` applies the
+**same `organization_rulesets` definitions per repository** (repository
+rulesets are free for public *and* private repos; only org-wide rulesets need
+Team). The single `paid_plan_features_enabled` flag switches between the two,
+and exactly one path is ever active:
+
+| flag | active path | how it covers repos |
+|------|-------------|---------------------|
+| `false` (now) | per-repo `github_repository_ruleset` | enumerates org repos, one ruleset each |
+| `true` (after upgrade) | one `github_organization_ruleset` | `include_repos = ["~ALL"]` |
+
+Flipping the flag and merging cleanly swaps them (the per-repo rulesets are
+destroyed and the org ruleset created in the same apply). The rule *definitions*
+live once in `organization_rulesets`, so both paths enforce identical rules.
+
+**Exclusions.** Both paths honor each ruleset's `include_repos`/`exclude_repos`,
+and the free path also honors `var.fallback_excluded_repos`. The repo hosting
+this config (`github-org`) is excluded in both — CI pushes state straight to its
+default branch as `github-actions[bot]` (not an org admin, so the admin bypass
+doesn't apply), and a `require_pull_request` rule there would block the state
+commit. Exclude any other repo whose CI pushes directly to its default branch as
+a non-admin, for the same reason.
+
+**Scope matching differs by path.** The paid org ruleset matches
+`include_repos`/`exclude_repos` as GitHub **fnmatch patterns** (e.g. `test-*`);
+the free per-repo path matches by **exact repo name** (plus the `~ALL`
+wildcard). Stick to exact names + `~ALL` if you want identical behavior across
+the toggle.
+
+**Caveats.** The free path enumerates repos via the search API, which can lag a
+few minutes for a brand-new repo (the daily drift run picks it up); the paid
+`~ALL` ruleset has no such lag. The free path also skips **archived** repos
+(harmless — archived repos are read-only, so a branch rule would be a no-op).
+
+To switch to the paid path: upgrade the org to Team, set
+`paid_plan_features_enabled = true`, then commit and merge to `main` — CI
+applies it (don't `terraform apply` locally; see "State").
 
 ## Hardening backlog
 
