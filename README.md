@@ -93,7 +93,8 @@ paid_plan_features_enabled = false   # flip to true after upgrading to Team
   Terraform makes **no rulesets API call**, so there's no 403.
 
 To activate: upgrade the org to Team, set `paid_plan_features_enabled = true`,
-then `terraform apply`.
+then commit and merge to `main` — CI applies it (don't `terraform apply`
+locally; see "State").
 
 ## Hardening backlog
 

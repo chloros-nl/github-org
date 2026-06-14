@@ -4,7 +4,7 @@
 # the rulesets API returns 403 ("Upgrade to GitHub Team to enable this
 # feature"). Gated by var.paid_plan_features_enabled: while that is false this
 # creates nothing (no API call), even if organization_rulesets is populated.
-# Flip the flag to true after upgrading and `terraform apply`.
+# Flip the flag to true after upgrading, then merge to main (CI applies).
 
 resource "github_organization_ruleset" "this" {
   for_each = var.paid_plan_features_enabled ? var.organization_rulesets : {}

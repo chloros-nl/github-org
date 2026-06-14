@@ -1,5 +1,5 @@
-# Org-wide GitHub Actions policy. Singleton org resource — import once with:
-#   terraform import github_actions_organization_permissions.this chloros-nl
+# Org-wide GitHub Actions policy. Singleton org resource — already imported into
+# the committed state (one-time bootstrap). From-scratch only: `make import-actions`.
 
 resource "github_actions_organization_permissions" "this" {
   allowed_actions      = var.actions_allowed_actions

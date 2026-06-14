@@ -1,6 +1,7 @@
 # Organization-level settings.
-# Import the existing org before the first apply (see README):
-#   terraform import github_organization_settings.this <org-id>
+# Already imported into the committed state (one-time bootstrap, see README).
+# From-scratch only: `make import-org` (re-running on this repo errors,
+# "Resource already managed by Terraform").
 
 resource "github_organization_settings" "this" {
   billing_email = var.billing_email
