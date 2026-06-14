@@ -1,0 +1,56 @@
+# Reference example showing every knob. The real values live in the committed
+# terraform.tfvars (no secrets there — auth is via $GITHUB_TOKEN).
+
+github_owner  = "chloros-nl"
+billing_email = "you@example.com"
+
+# member privileges / base policy
+default_repository_permission           = "read"
+members_can_create_public_repositories  = false
+members_can_create_private_repositories = true
+members_can_fork_private_repositories   = false
+web_commit_signoff_required             = true
+
+# security defaults for NEW repos (free for public repos)
+dependabot_alerts_enabled_for_new_repositories              = true
+dependabot_security_updates_enabled_for_new_repositories    = true
+dependency_graph_enabled_for_new_repositories               = true
+secret_scanning_enabled_for_new_repositories                = true
+secret_scanning_push_protection_enabled_for_new_repositories = true
+
+# org-wide Actions policy
+actions_allowed_actions      = "selected" # all | local_only | selected
+actions_enabled_repositories = "all"      # all | none
+actions_sha_pinning_required = true
+actions_allowed_actions_config = {
+  github_owned_allowed = true
+  verified_allowed     = true
+  patterns_allowed     = ["my-org/*"]
+}
+
+# paid-plan features (require GitHub Team) — gated by the flag below
+paid_plan_features_enabled = true
+organization_rulesets = {
+  "default-branch-protection" = {
+    enforcement                     = "active"
+    include_refs                    = ["~DEFAULT_BRANCH"]
+    include_repos                   = ["~ALL"]
+    require_pull_request            = true
+    required_approving_reviews      = 1
+    require_conversation_resolution = true
+    required_status_checks          = ["build", "test"]
+    block_force_push                = true
+    block_deletion                  = true
+    bypass_org_admins               = true
+  }
+}
+
+teams = {
+  maintainers = {
+    description = "Org maintainers"
+    privacy     = "closed"
+    members = {
+      yhu02 = "maintainer"
+    }
+  }
+}

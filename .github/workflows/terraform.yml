@@ -1,0 +1,47 @@
+name: terraform
+
+on:
+  pull_request:
+    paths: ["**.tf", "**.tfvars", ".github/workflows/terraform.yml"]
+  push:
+    branches: [main]
+    paths: ["**.tf", "**.tfvars"]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    env:
+      # Prefer a GitHub App token (set via the actions/create-github-app-token
+      # step below) over a long-lived PAT. The App must be installed on the org
+      # with org administration + repo administration permissions.
+      GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate org admin token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ vars.TF_APP_ID }}
+          private-key: ${{ secrets.TF_APP_PRIVATE_KEY }}
+          owner: chloros-nl
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.15.6
+
+      - run: terraform init
+      - run: terraform fmt -check -recursive
+      - run: terraform validate
+
+      - name: Plan
+        if: github.event_name == 'pull_request'
+        run: terraform plan -no-color -input=false
+
+      - name: Apply
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: terraform apply -auto-approve -input=false

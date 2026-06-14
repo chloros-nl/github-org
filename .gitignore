@@ -1,0 +1,22 @@
+# Terraform state — may contain secret values. Never commit.
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl.bak
+crash.log
+crash.*.log
+
+# Auto-loaded var files may carry secrets — keep them out of git.
+# (terraform.tfvars itself IS committed: it's the declarative org config and
+# holds no secrets. Auth comes from $GITHUB_TOKEN, never a var file.)
+*.auto.tfvars
+secret.tfvars
+*.secret.tfvars
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Plan output (can leak values).
+*.tfplan
+plan.out

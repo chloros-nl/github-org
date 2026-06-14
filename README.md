@@ -1,0 +1,116 @@
+# github-org
+
+Terraform configuration that manages the [`chloros-nl`](https://github.com/chloros-nl)
+GitHub organization as code — **organization-level settings only**: org
+settings/policies, security defaults for new repos, org-wide Actions policy,
+org-wide rulesets, and teams. Per-repository settings (merge options, wiki,
+per-repo branch protection, team→repo access) are intentionally **out of scope**
+and left to each repo.
+
+## Layout
+
+| File | Purpose |
+|------|---------|
+| `versions.tf` | Terraform + provider version pins, backend config |
+| `providers.tf` | `integrations/github` provider (auth via `$GITHUB_TOKEN`) |
+| `variables.tf` | Input variable definitions |
+| `terraform.tfvars` | **Live values** for the org (committed; no secrets) |
+| `terraform.tfvars.example` | Reference example with all knobs |
+| `org.tf` | `github_organization_settings` (policy + new-repo security defaults) |
+| `actions.tf` | `github_actions_organization_permissions` (org-wide Actions policy) |
+| `rulesets.tf` | `github_organization_ruleset` (org-wide branch rules — **paid**, gated) |
+| `teams.tf` | Teams + memberships (org-level) |
+| `outputs.tf` | Convenience outputs |
+| `.github/workflows/terraform.yml` | CI: fmt/validate/plan on PR, apply on main |
+
+## Prerequisites
+
+- Terraform >= 1.6 (installed at `~/.local/bin/terraform`).
+- A token with **`admin:org`, `repo`, `workflow`** scopes exported as
+  `GITHUB_TOKEN`. Your current `gh` token only has `read:org` — it can read
+  but **cannot apply**. Create a dedicated token:
+
+  ```bash
+  # Classic PAT with admin:org, repo, workflow — then:
+  export GITHUB_TOKEN=ghp_xxx
+  ```
+
+  For CI, use a **GitHub App** installation token instead of a PAT (see the
+  workflow) — it isn't tied to a person and is easy to rotate.
+
+## First run: import existing state
+
+This config describes resources that **already exist**, so import them before
+the first `apply` (otherwise Terraform tries to create duplicates and fails).
+
+```bash
+cd ~/private/github-org
+export GITHUB_TOKEN=<token with admin:org>
+
+terraform init
+make import-org      # imports github_organization_settings.this
+make import-actions  # imports github_actions_organization_permissions.this
+
+terraform plan       # should now report: No changes
+```
+
+`terraform.tfvars` mirrors the org's current settings, so a clean import gives
+a no-op plan. From there, change a value, `terraform plan` to preview, and
+`terraform apply`.
+
+## Day-to-day
+
+```bash
+make check    # fmt + validate
+make plan     # preview
+make apply    # apply
+```
+
+## Adding things
+
+- **A team**: add an entry to `teams` in `terraform.tfvars` with its `members`.
+- **Org policy**: flip the org-level variables (repo-creation privileges, base
+  permission, web commit sign-off).
+
+See `terraform.tfvars.example` for the full shape. Per-repo settings are
+deliberately not managed here.
+
+## Paid-plan features (gated)
+
+Some org-wide controls require a **paid GitHub plan (Team or higher)**. The
+`chloros-nl` org is currently on **Free**, where the org rulesets API returns
+`403 "Upgrade to GitHub Team to enable this feature"`.
+
+These are written and ready in `terraform.tfvars`, but gated behind a single
+flag so they never break `apply` on the free plan:
+
+```hcl
+paid_plan_features_enabled = false   # flip to true after upgrading to Team
+```
+
+- **`organization_rulesets`** — org-wide branch protection on every repo's
+  default branch (require PR, block force-push, block deletion, require
+  conversation resolution; org admins can bypass). While the flag is `false`,
+  Terraform makes **no rulesets API call**, so there's no 403.
+
+To activate: upgrade the org to Team, set `paid_plan_features_enabled = true`,
+then `terraform apply`.
+
+## Hardening backlog
+
+The org currently allows public repo creation, base permission `read`, and has
+2FA disabled. Recommended once ready (see the commented block in
+`terraform.tfvars`):
+
+- `members_can_create_public_repositories = false`
+- `web_commit_signoff_required = true`
+- Enable 2FA enforcement in the org UI (Settings > Authentication security) —
+  this is **not** settable via the provider, and every member must have 2FA on
+  first or GitHub rejects it.
+
+## Notes & limits
+
+- **State** (`*.tfstate`) is gitignored and can contain secret values. For team
+  use, configure the remote backend in `versions.tf`.
+- A few org settings (some billing, SAML/SSO on certain plans, parts of the
+  security center) aren't exposed by the API and must stay in the web UI.
