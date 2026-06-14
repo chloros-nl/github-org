@@ -108,9 +108,25 @@ The org currently allows public repo creation, base permission `read`, and has
   this is **not** settable via the provider, and every member must have 2FA on
   first or GitHub rejects it.
 
-## Notes & limits
+## State
 
-- **State** (`*.tfstate`) is gitignored and can contain secret values. For team
-  use, configure the remote backend in `versions.tf`.
+`terraform.tfstate` is **committed to this repo** (no remote backend). That is
+safe here because this org-level state contains **no secrets** — no tokens, no
+provider-flagged sensitive attributes (the GitHub token is never stored in
+state). Only `*.tfstate.backup` is gitignored.
+
+**CI is the sole state writer.** On merge to `main` (or a `workflow_dispatch`
+with `action=apply`), CI runs `terraform apply` and commits the updated
+`terraform.tfstate` back with `[skip ci]`. To keep this consistent:
+
+- **Do not run `terraform apply` locally** against the org — let CI do it, or
+  you'll diverge from the committed state. Local `terraform plan` is fine.
+- A `concurrency: terraform-state` group serializes runs so two applies can't
+  write state at once. Git provides no real lock — this group is the guard.
+- If you ever add a resource whose state *does* hold a secret, stop committing
+  state and switch to the encrypted remote backend stub in `versions.tf`.
+
+## Limits
+
 - A few org settings (some billing, SAML/SSO on certain plans, parts of the
   security center) aren't exposed by the API and must stay in the web UI.

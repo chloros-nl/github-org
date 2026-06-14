@@ -1,6 +1,9 @@
-# Terraform state — may contain secret values. Never commit.
-*.tfstate
-*.tfstate.*
+# Terraform state IS committed to this repo. This org-level config holds no
+# secrets in state (verified: no tokens, no provider-sensitive attributes), and
+# CI is the sole state writer. See README "State". Only backups/locals are
+# ignored — never commit a state file that contains secrets.
+*.tfstate.backup
+*.tfstate.*.backup
 .terraform/
 .terraform.lock.hcl.bak
 crash.log
