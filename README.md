@@ -20,6 +20,7 @@ and left to each repo.
 | `actions.tf` | `github_actions_organization_permissions` (org-wide Actions policy) |
 | `rulesets.tf` | `github_organization_ruleset` (org-wide branch rules — **paid**, gated) |
 | `repo_rulesets.tf` | `github_repository_ruleset` per repo (free fallback, active when the paid flag is off) |
+| `security_repos.tf` | Drift-protects security + visibility on the pre-existing repos |
 | `teams.tf` | Teams + memberships (org-level) |
 | `outputs.tf` | Convenience outputs |
 | `.github/workflows/terraform.yml` | CI: fmt/validate/plan on PR, apply on main |
@@ -165,6 +166,13 @@ org-level), so enable the same features on any repo that predates them.
 `.github/dependabot.yml` keeps the pinned actions and the `integrations/github`
 provider current. Dependabot PRs run without repo secrets, so `terraform.yml`
 skips the App-token/plan steps for `dependabot[bot]` and only fmt/validates.
+
+The org defaults only cover *future* repos, so the two pre-existing repos
+(`topos`, `github-org`) are adopted in `security_repos.tf` and **drift-protected**:
+Terraform enforces their secret scanning, push protection, vulnerability alerts,
+Dependabot security updates, and visibility (so an unexpected visibility flip is
+reverted), while a broad `ignore_changes` leaves every other repo setting to you.
+Add a repo to `local.security_managed_repos` (and its `import` blocks) to cover it.
 
 ## Hardening backlog
 
