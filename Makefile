@@ -18,7 +18,7 @@ check: fmt validate ## Format + validate
 plan: ## Show planned changes
 	terraform plan
 
-apply: ## Apply changes
+apply: ## Apply changes (break-glass only — normally CI applies on merge to main)
 	terraform apply
 
 import-org: ## Import the existing org settings (run once). Needs admin:org token.

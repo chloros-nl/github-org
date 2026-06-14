@@ -25,6 +25,8 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      # Scoped to the plan/apply steps via step-level env (not job-wide), so the
+      # commit/push and issue steps never inherit the org-admin token.
       - name: Generate org admin token
         id: app-token
         uses: actions/create-github-app-token@v3
@@ -32,9 +34,6 @@ jobs:
           app-id: ${{ vars.TF_APP_ID }}
           private-key: ${{ secrets.TF_APP_PRIVATE_KEY }}
           owner: chloros-nl
-
-      - name: Export token for Terraform
-        run: echo "GITHUB_TOKEN=${{ steps.app-token.outputs.token }}" >> "$GITHUB_ENV"
 
       - uses: hashicorp/setup-terraform@v4
         with:
@@ -46,6 +45,8 @@ jobs:
       # exit 0 = in sync, 2 = drift, 1 = error.
       - name: Detect drift
         id: plan
+        env:
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           set +e
           terraform plan -detailed-exitcode -no-color -input=false -out=drift.tfplan > plan.txt 2>&1
@@ -61,6 +62,8 @@ jobs:
       - name: Reconcile drift
         id: apply
         if: steps.plan.outputs.exitcode == '2'
+        env:
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
         run: terraform apply -auto-approve -input=false drift.tfplan
 
       - name: Commit reconciled state
@@ -69,11 +72,25 @@ jobs:
           if git diff --quiet -- terraform.tfstate; then
             echo "State unchanged."; exit 0
           fi
+          # Tripwire: never commit state once it begins storing secret values.
+          if [ "$(jq '[.resources[].instances[].sensitive_attributes // [] | length] | add // 0' terraform.tfstate)" != "0" ]; then
+            echo "::error::terraform.tfstate now contains sensitive attributes — refusing to commit. Switch to the encrypted remote backend (see versions.tf)."
+            exit 1
+          fi
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add terraform.tfstate
           git commit -m "chore(ci): reconcile org drift, update state [skip ci]"
-          git push
+          # Rebase + retry so a concurrent push to main can't drop this state commit.
+          for attempt in 1 2 3; do
+            if git pull --rebase --autostash origin main && git push; then
+              exit 0
+            fi
+            echo "push attempt $attempt failed (likely non-fast-forward); rebasing and retrying..."
+            sleep $((RANDOM % 4 + 2))
+          done
+          echo "::error::could not push reconciled state after 3 attempts — reconcile manually"
+          exit 1
 
       # Record drift in a single rolling tracking issue (comment if one is open,
       # otherwise create). Uses the default Actions token (has issues:write).

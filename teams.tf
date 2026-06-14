@@ -1,5 +1,6 @@
-# Teams, their memberships, and their repo access. All optional — empty by
-# default since the org currently has no teams. Populate var.teams to use.
+# Teams and their memberships (org-level). All optional — empty by default
+# since the org currently has no teams. Populate var.teams to use. Team→repo
+# access grants are intentionally out of scope (see variables.tf / README).
 
 resource "github_team" "this" {
   for_each = var.teams

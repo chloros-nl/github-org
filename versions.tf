@@ -8,8 +8,14 @@ terraform {
     }
   }
 
-  # Local state by default. For team use, switch to a remote backend so state
-  # is shared and locked. Example (uncomment + configure):
+  # State handling: terraform.tfstate is COMMITTED to this repo by design (see
+  # README "State"). This org-level state was verified to hold no secret values
+  # — no tokens, no provider-sensitive attributes — and CI is the sole writer.
+  # A CI tripwire refuses to commit state if a sensitive attribute ever appears.
+  #
+  # If you add a resource whose state DOES store a secret, stop committing state
+  # and switch to an encrypted remote backend (and gitignore terraform.tfstate),
+  # e.g.:
   #
   # backend "s3" {
   #   bucket         = "chloros-nl-tfstate"
@@ -18,7 +24,4 @@ terraform {
   #   dynamodb_table = "chloros-nl-tflock"
   #   encrypt        = true
   # }
-  #
-  # State contains secret *values* you set via Terraform. Keep it out of git
-  # (see .gitignore) and prefer an encrypted remote backend.
 }

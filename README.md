@@ -39,32 +39,30 @@ and left to each repo.
   For CI, use a **GitHub App** installation token instead of a PAT (see the
   workflow) — it isn't tied to a person and is easy to rotate.
 
-## First run: import existing state
+## First run / fresh clone
 
-This config describes resources that **already exist**, so import them before
-the first `apply` (otherwise Terraform tries to create duplicates and fails).
+The org resources are **already imported and recorded in the committed
+`terraform.tfstate`**, so a fresh clone needs no import:
 
 ```bash
 cd ~/private/github-org
-export GITHUB_TOKEN=<token with admin:org>
-
+export GITHUB_TOKEN=<token with admin:org>   # only needed for a local plan
 terraform init
-make import-org      # imports github_organization_settings.this
-make import-actions  # imports github_actions_organization_permissions.this
-
-terraform plan       # should now report: No changes
+terraform plan   # reads committed state; should report: No changes
 ```
 
-`terraform.tfvars` mirrors the org's current settings, so a clean import gives
-a no-op plan. From there, change a value, `terraform plan` to preview, and
-`terraform apply`.
+The one-time bootstrap that imported the existing org (`make import-org` /
+`make import-actions`) has already been run; re-running it now errors with
+"Resource already managed by Terraform".
 
 ## Day-to-day
 
+Changes ship through Git — **CI is the sole state writer** (see "State"), so
+don't `apply` locally. Locally you only preview:
+
 ```bash
 make check    # fmt + validate
-make plan     # preview
-make apply    # apply
+make plan     # preview against the committed state
 ```
 
 ## Adding things
