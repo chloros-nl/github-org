@@ -15,14 +15,11 @@ permissions:
 jobs:
   terraform:
     runs-on: ubuntu-latest
-    env:
-      # Prefer a GitHub App token (set via the actions/create-github-app-token
-      # step below) over a long-lived PAT. The App must be installed on the org
-      # with org administration + repo administration permissions.
-      GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
     steps:
       - uses: actions/checkout@v4
 
+      # GitHub App token (preferred over a long-lived PAT). The App must be
+      # installed on the org with Organization administration: read & write.
       - name: Generate org admin token
         id: app-token
         uses: actions/create-github-app-token@v1
@@ -30,6 +27,10 @@ jobs:
           app-id: ${{ vars.TF_APP_ID }}
           private-key: ${{ secrets.TF_APP_PRIVATE_KEY }}
           owner: chloros-nl
+
+      # Expose it to every later step as the Terraform provider's credential.
+      - name: Export token for Terraform
+        run: echo "GITHUB_TOKEN=${{ steps.app-token.outputs.token }}" >> "$GITHUB_ENV"
 
       - uses: hashicorp/setup-terraform@v3
         with:
