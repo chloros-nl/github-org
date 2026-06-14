@@ -172,7 +172,10 @@ The org defaults only cover *future* repos, so the two pre-existing repos
 Terraform enforces their secret scanning, push protection, vulnerability alerts,
 Dependabot security updates, and visibility (so an unexpected visibility flip is
 reverted), while a broad `ignore_changes` leaves every other repo setting to you.
-Add a repo to `local.security_managed_repos` (and its `import` blocks) to cover it.
+To cover another **existing** repo, add it to `local.security_managed_repos` and,
+because the repo already exists, adopt it on the next apply with a temporary
+`import` block (or `terraform import` each address) — then remove the block. (The
+original import blocks were removed once the current repos were in state.)
 
 ## Hardening backlog
 
