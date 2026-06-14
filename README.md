@@ -40,6 +40,17 @@ and left to each repo.
   For CI, use a **GitHub App** installation token instead of a PAT (see the
   workflow) — it isn't tied to a person and is easy to rotate.
 
+  **App permissions** (set on the GitHub App, approved on the org install):
+  - **Organization → Administration: Read & write** — org settings, Actions
+    policy, and the *paid* org-wide ruleset.
+  - **Organization → Members: Read & write** — only if you manage `teams`.
+  - **Repository → Administration: Read & write** — **required for the free
+    per-repo ruleset fallback** (`repo_rulesets.tf`). Creating a *repository*
+    ruleset is a repo-admin action; without it the App gets
+    `403 Resource not accessible by integration`. (The paid org-ruleset path
+    does **not** need this — org Administration covers it.)
+  - **Repository → Metadata: Read** — mandatory baseline.
+
 ## First run / fresh clone
 
 The org resources are **already imported and recorded in the committed
