@@ -13,12 +13,13 @@ members_can_fork_private_repositories   = false
 web_commit_signoff_required             = false
 
 # --- security defaults for NEW repos (free for public repos) ----------------
-# Currently all off (matches the org). Flip to true to harden new repos.
-dependabot_alerts_enabled_for_new_repositories               = false
-dependabot_security_updates_enabled_for_new_repositories     = false
-dependency_graph_enabled_for_new_repositories                = false
-secret_scanning_enabled_for_new_repositories                 = false
-secret_scanning_push_protection_enabled_for_new_repositories = false
+# On for new repos; verified settable on the Free plan. Existing repos are
+# enabled separately (org defaults only apply to repos created after this).
+dependabot_alerts_enabled_for_new_repositories               = true
+dependabot_security_updates_enabled_for_new_repositories     = true
+dependency_graph_enabled_for_new_repositories                = true
+secret_scanning_enabled_for_new_repositories                 = true
+secret_scanning_push_protection_enabled_for_new_repositories = true
 
 # --- org-wide Actions policy -----------------------------------------------
 actions_allowed_actions      = "all" # all | local_only | selected
@@ -32,9 +33,13 @@ actions_sha_pinning_required = false
 # Settings below are written and ready; they activate only when this is true.
 paid_plan_features_enabled = false
 
-# Org-wide branch protection on every repo's default branch. Applies the moment
-# paid_plan_features_enabled = true (after upgrading to Team).
+# Global free-path opt-out is empty: per-ruleset exclude_repos/include_repos
+# below scope each rule, so github-org is handled explicitly (excluded from the
+# require-PR rule, included in the force-push/deletion rule).
+fallback_excluded_repos = []
+
 organization_rulesets = {
+  # Standard branch protection for every repo EXCEPT this config repo.
   "default-branch-protection" = {
     enforcement   = "active"
     target        = "branch"
@@ -42,8 +47,7 @@ organization_rulesets = {
     include_repos = ["~ALL"]
     # Exclude the repo hosting this config: CI pushes state straight to its
     # default branch as github-actions[bot], so a require_pull_request rule
-    # there would block the state commit. Honored by BOTH the org-ruleset
-    # (paid) and per-repo fallback (free) paths.
+    # there would block the state commit. Honored by BOTH paths.
     exclude_repos = ["github-org"]
 
     require_pull_request            = true
@@ -55,6 +59,22 @@ organization_rulesets = {
     block_force_push  = true
     block_deletion    = true
     bypass_org_admins = true # admins can still push directly
+  }
+
+  # The config repo itself: protect history WITHOUT requiring PRs, so CI's
+  # state-commit push (a normal fast-forward) still works while force-pushes
+  # and branch deletion are blocked. No admin bypass — IaC history is locked
+  # even for owners (disable this rule deliberately if you ever must rewrite).
+  "config-repo-no-rewrite" = {
+    enforcement   = "active"
+    target        = "branch"
+    include_refs  = ["~DEFAULT_BRANCH"]
+    include_repos = ["github-org"]
+
+    require_pull_request = false
+    block_force_push     = true
+    block_deletion       = true
+    bypass_org_admins    = false
   }
 }
 

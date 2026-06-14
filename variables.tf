@@ -158,9 +158,9 @@ variable "organization_rulesets" {
 }
 
 variable "fallback_excluded_repos" {
-  description = "Repos to skip in the FREE per-repo ruleset fallback (paid_plan_features_enabled=false), in addition to each ruleset's own exclude_repos. Defaults to the repo hosting this config, because CI pushes state straight to its default branch and a require_pull_request rule there would block it."
+  description = "Extra repos to skip across ALL free per-repo rulesets (paid_plan_features_enabled=false), on top of each ruleset's own exclude_repos. Prefer per-ruleset exclude_repos/include_repos for scoping; this is a blunt global opt-out. NOTE: any ruleset with require_pull_request=true MUST exclude the repo hosting this config (CI pushes state directly to its default branch as a non-admin bot)."
   type        = list(string)
-  default     = ["github-org"]
+  default     = []
 }
 
 variable "teams" {

@@ -24,6 +24,7 @@ and left to each repo.
 | `outputs.tf` | Convenience outputs |
 | `.github/workflows/terraform.yml` | CI: fmt/validate/plan on PR, apply on main |
 | `.github/workflows/drift.yml` | Scheduled drift detection + auto-reconcile |
+| `.github/dependabot.yml` | Auto-update pinned actions + the github provider |
 
 ## Prerequisites
 
@@ -124,13 +125,18 @@ Flipping the flag and merging cleanly swaps them (the per-repo rulesets are
 destroyed and the org ruleset created in the same apply). The rule *definitions*
 live once in `organization_rulesets`, so both paths enforce identical rules.
 
-**Exclusions.** Both paths honor each ruleset's `include_repos`/`exclude_repos`,
-and the free path also honors `var.fallback_excluded_repos`. The repo hosting
-this config (`github-org`) is excluded in both — CI pushes state straight to its
-default branch as `github-actions[bot]` (not an org admin, so the admin bypass
-doesn't apply), and a `require_pull_request` rule there would block the state
-commit. Exclude any other repo whose CI pushes directly to its default branch as
-a non-admin, for the same reason.
+**Exclusions & the config repo.** Both paths honor each ruleset's
+`include_repos`/`exclude_repos`, and the free path also honors
+`var.fallback_excluded_repos`. The repo hosting this config (`github-org`) is
+**excluded from the `require_pull_request` ruleset** (`default-branch-protection`)
+— CI pushes state straight to its default branch as `github-actions[bot]` (not an
+org admin, so the admin bypass doesn't apply), and a PR-required rule would block
+the state commit. It is instead covered by a separate **`config-repo-no-rewrite`**
+ruleset that blocks force-pushes and branch deletion **without** requiring PRs, so
+CI's normal fast-forward push still works while the IaC history can't be rewritten
+(no admin bypass — disable that rule deliberately if you ever must rewrite).
+Apply the same split to any other repo whose CI pushes directly to its default
+branch as a non-admin.
 
 **Scope matching differs by path.** The paid org ruleset matches
 `include_repos`/`exclude_repos` as GitHub **fnmatch patterns** (e.g. `test-*`);
@@ -147,17 +153,29 @@ To switch to the paid path: upgrade the org to Team, set
 `paid_plan_features_enabled = true`, then commit and merge to `main` — CI
 applies it (don't `terraform apply` locally; see "State").
 
+## Repository security
+
+New repos get Dependabot alerts + security updates, dependency graph, secret
+scanning, and push protection automatically (the
+`*_enabled_for_new_repositories` settings, on by default here; free for public
+repos). These org defaults apply **only to repos created after** they were set —
+existing repos are enabled out-of-band (not via this config, to keep it
+org-level), so enable the same features on any repo that predates them.
+
+`.github/dependabot.yml` keeps the pinned actions and the `integrations/github`
+provider current. Dependabot PRs run without repo secrets, so `terraform.yml`
+skips the App-token/plan steps for `dependabot[bot]` and only fmt/validates.
+
 ## Hardening backlog
 
-The org currently allows public repo creation, base permission `read`, and has
-2FA disabled. Recommended once ready (see the commented block in
-`terraform.tfvars`):
+Still open (deliberate, your call):
 
-- `members_can_create_public_repositories = false`
-- `web_commit_signoff_required = true`
-- Enable 2FA enforcement in the org UI (Settings > Authentication security) —
-  this is **not** settable via the provider, and every member must have 2FA on
-  first or GitHub rejects it.
+- **2FA enforcement** is **off** — enable in the org UI (Settings >
+  Authentication security); **not** settable via the provider, and every member
+  must have 2FA on first or GitHub rejects it.
+- `members_can_create_public_repositories = true` — tighten to `false` if you
+  want to gate public-repo creation.
+- `web_commit_signoff_required = false` — flip to `true` to require sign-off.
 
 ## State
 

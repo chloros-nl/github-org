@@ -35,8 +35,11 @@ jobs:
       # step-level env — it is NOT exported job-wide, so the commit/push step
       # never sees it (that step pushes with the default Actions token that
       # actions/checkout persists).
+      # Skipped on Dependabot PRs: those runs get no repo secrets, so the token
+      # can't be minted — they fall back to fmt/validate only (no token needed).
       - name: Generate org admin token
         id: app-token
+        if: github.actor != 'dependabot[bot]'
         uses: actions/create-github-app-token@v3
         with:
           app-id: ${{ vars.TF_APP_ID }}
@@ -53,8 +56,9 @@ jobs:
 
       - name: Plan
         if: >-
-          github.event_name == 'pull_request' ||
-          (github.event_name == 'workflow_dispatch' && inputs.action == 'plan')
+          github.actor != 'dependabot[bot]' &&
+          (github.event_name == 'pull_request' ||
+          (github.event_name == 'workflow_dispatch' && inputs.action == 'plan'))
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
         run: terraform plan -no-color -input=false

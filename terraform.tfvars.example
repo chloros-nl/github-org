@@ -33,15 +33,15 @@ actions_allowed_actions_config = {
 #   paid_plan_features_enabled = false -> the same rule applied per-repo (free)
 paid_plan_features_enabled = false
 
-# Free fallback opt-outs (only used when the flag is false). Defaults to the
-# repo hosting this config; add others you don't want auto-protected.
-fallback_excluded_repos = ["github-org"]
+# Blunt global opt-out across all free rulesets; prefer per-ruleset scoping.
+fallback_excluded_repos = []
 
 organization_rulesets = {
+  # Most repos: full branch protection. Exclude the config repo (CI direct-push).
   "default-branch-protection" = {
     enforcement                     = "active"
     include_refs                    = ["~DEFAULT_BRANCH"]
-    include_repos                   = ["~ALL"]      # paid path only
+    include_repos                   = ["~ALL"]       # paid path only
     exclude_repos                   = ["github-org"] # honored by both paths
     require_pull_request            = true
     required_approving_reviews      = 1
@@ -50,6 +50,16 @@ organization_rulesets = {
     block_force_push                = true
     block_deletion                  = true
     bypass_org_admins               = true
+  }
+  # The config repo: lock history without requiring PRs (so CI can still push).
+  "config-repo-no-rewrite" = {
+    enforcement          = "active"
+    include_refs         = ["~DEFAULT_BRANCH"]
+    include_repos        = ["github-org"]
+    require_pull_request = false
+    block_force_push     = true
+    block_deletion       = true
+    bypass_org_admins    = false
   }
 }
 

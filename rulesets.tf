@@ -31,7 +31,9 @@ resource "github_organization_ruleset" "this" {
   dynamic "bypass_actors" {
     for_each = each.value.bypass_org_admins ? [1] : []
     content {
-      actor_id    = 1 # the OrganizationAdmin role
+      # OrganizationAdmin is role-based; the API stores no numeric id and
+      # returns null (refreshed as 0). Using 0 avoids a perpetual plan diff.
+      actor_id    = 0
       actor_type  = "OrganizationAdmin"
       bypass_mode = "always"
     }

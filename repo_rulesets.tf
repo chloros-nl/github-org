@@ -27,9 +27,12 @@ locals {
   # opt-out list. NOTE: the org path matches include/exclude as GitHub fnmatch
   # patterns; this free path matches by EXACT repo name (and the "~ALL" wildcard)
   # only — globs like "test-*" work on the paid path but not here.
-  # The repo hosting this config (fallback_excluded_repos default) is excluded
-  # because CI pushes state straight to its default branch as github-actions[bot]
-  # — a require_pull_request rule there would block the state commit.
+  # The repo hosting this config is excluded from the require_pull_request
+  # ruleset (default-branch-protection's exclude_repos) because CI pushes state
+  # straight to its default branch as github-actions[bot] — a PR-required rule
+  # would block the state commit. It is instead covered by config-repo-no-rewrite
+  # (force-push/deletion blocking, no PR requirement). Any other direct-push repo
+  # needs the same split.
   repo_rulesets = {
     for pair in flatten([
       for rs_name, rs in var.organization_rulesets : [
@@ -65,7 +68,9 @@ resource "github_repository_ruleset" "fallback" {
   dynamic "bypass_actors" {
     for_each = each.value.spec.bypass_org_admins ? [1] : []
     content {
-      actor_id    = 1 # the OrganizationAdmin role
+      # OrganizationAdmin is role-based; the API stores no numeric id and
+      # returns null (refreshed as 0). Using 0 avoids a perpetual plan diff.
+      actor_id    = 0
       actor_type  = "OrganizationAdmin"
       bypass_mode = "always"
     }
