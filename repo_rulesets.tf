@@ -5,15 +5,21 @@
 # individually — but repo rulesets are free for PUBLIC repos only. On a private
 # repo the rulesets API returns 403 ("Upgrade to GitHub Pro or make this
 # repository public"), so this fallback covers public repos only; private repos
-# get no ruleset protection until paid_plan_features_enabled = true switches on
-# the org-wide rulesets (rulesets.tf), which DO cover private repos on Team.
+# get no ruleset protection until the org-wide rulesets (rulesets.tf) are enabled
+# on Team, which DO cover private repos.
 #
 # This path and the org-ruleset path are driven by the SAME definitions
-# (var.organization_rulesets) and the SAME toggle, but inverted, so exactly one
-# is ever active and flipping the flag switches over cleanly:
+# (var.organization_rulesets). This free path activates while
+# paid_plan_features_enabled = false:
 #
 #   paid_plan_features_enabled = false  -> per-repo rulesets here (free, public repos only)
-#   paid_plan_features_enabled = true   -> org rulesets in rulesets.tf (paid, all repos)
+#   paid_plan_features_enabled = true   -> this fallback turns OFF
+#
+# NOTE: the org-wide ruleset in rulesets.tf is currently COMMENTED OUT (it 403s
+# on Free). Setting the flag to true alone turns this fallback off WITHOUT
+# enabling org rulesets — leaving repos unprotected. To switch to the paid path
+# you must BOTH uncomment the resource in rulesets.tf AND set the flag to true
+# (see the "TO ENABLE" header in rulesets.tf).
 
 # Enumerate the org's non-archived PUBLIC repos (only needed in fallback mode).
 # is:public is required: a repo ruleset on a private repo 403s on the Free plan,

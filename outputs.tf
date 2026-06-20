@@ -15,5 +15,5 @@ output "branch_protection_mode" {
 
 output "fallback_protected_repos" {
   description = "Public repos covered by the free per-repo ruleset fallback (private repos are excluded on Free; empty when on the paid org-ruleset path)."
-  value       = sort([for k in keys(github_repository_ruleset.fallback) : github_repository_ruleset.fallback[k].repository])
+  value       = sort(distinct([for k in keys(github_repository_ruleset.fallback) : github_repository_ruleset.fallback[k].repository]))
 }
