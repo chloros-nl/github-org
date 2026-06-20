@@ -129,9 +129,11 @@ variable "paid_plan_features_enabled" {
 }
 
 # --- Org-wide branch/tag rulesets (PAID: requires GitHub Team plan) ----------
-# Gated by var.paid_plan_features_enabled. On Free the rulesets API returns 403.
+# These definitions drive BOTH paths: the paid org-wide ruleset (rulesets.tf,
+# currently commented out) AND the free per-repo fallback (repo_rulesets.tf,
+# active on Free for public repos). They are consumed regardless of the flag.
 variable "organization_rulesets" {
-  description = "Org-wide rulesets keyed by ruleset name. Empty = none (no API call)."
+  description = "Org-wide ruleset definitions keyed by name; drive the paid org ruleset and the free per-repo fallback. Empty = none."
   type = map(object({
     enforcement   = optional(string, "active") # active | evaluate | disabled
     target        = optional(string, "branch") # branch | tag
