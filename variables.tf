@@ -190,7 +190,7 @@ variable "actions_runner_groups" {
   validation {
     condition = alltrue([
       for g in values(var.actions_runner_groups) :
-      length(g.selected_repositories) == 0 || g.visibility == "selected"
+      length(g.selected_repositories != null ? g.selected_repositories : []) == 0 || g.visibility == "selected"
     ])
     error_message = "selected_repositories is only valid when visibility = \"selected\"."
   }
@@ -198,7 +198,7 @@ variable "actions_runner_groups" {
   validation {
     condition = alltrue([
       for g in values(var.actions_runner_groups) :
-      g.visibility != "selected" || length(g.selected_repositories) > 0
+      g.visibility != "selected" || length(g.selected_repositories != null ? g.selected_repositories : []) > 0
     ])
     error_message = "A runner group with visibility = \"selected\" must list at least one repository in selected_repositories (a selected group with no repos is usable by nothing)."
   }
@@ -206,7 +206,7 @@ variable "actions_runner_groups" {
   validation {
     condition = alltrue([
       for g in values(var.actions_runner_groups) :
-      !g.restricted_to_workflows || length(g.selected_workflows) > 0
+      !g.restricted_to_workflows || length(g.selected_workflows != null ? g.selected_workflows : []) > 0
     ])
     error_message = "When restricted_to_workflows = true, selected_workflows must list at least one workflow (otherwise no workflow can use the group)."
   }
@@ -214,7 +214,7 @@ variable "actions_runner_groups" {
   validation {
     condition = alltrue([
       for g in values(var.actions_runner_groups) :
-      length(g.selected_workflows) == 0 || g.restricted_to_workflows
+      length(g.selected_workflows != null ? g.selected_workflows : []) == 0 || g.restricted_to_workflows
     ])
     error_message = "selected_workflows is only valid when restricted_to_workflows = true (otherwise it is silently ignored)."
   }
