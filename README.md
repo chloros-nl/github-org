@@ -97,34 +97,46 @@ Some org-wide controls require a **paid GitHub plan (Team or higher)**. The
 `chloros-nl` org is currently on **Free**, where the org rulesets API returns
 `403 "Upgrade to GitHub Team to enable this feature"`.
 
-These are written and ready in `terraform.tfvars`, but gated behind a single
-flag so they never break `apply` on the free plan:
+The paid resources are **commented out** in their `.tf` files so they never
+reach the API on Free, and the `paid_plan_features_enabled` flag stays `false`:
 
 ```hcl
-paid_plan_features_enabled = false   # flip to true after upgrading to Team
+paid_plan_features_enabled = false   # see each paid resource's "TO ENABLE" header
 ```
 
-- **`organization_rulesets`** — org-wide branch protection on every repo's
-  default branch (require PR, block force-push, block deletion, require
-  conversation resolution; org admins can bypass). While the flag is `false`,
-  Terraform makes **no rulesets API call**, so there's no 403.
+- **`organization_rulesets`** (`rulesets.tf`) — org-wide branch protection on
+  every repo's default branch (require PR, block force-push, block deletion,
+  require conversation resolution; org admins can bypass). The
+  `github_organization_ruleset` resource is **commented out**; the rule
+  definitions in `var.organization_rulesets` are still consumed by the free
+  per-repo fallback below. To enable: upgrade to Team, **uncomment the resource**
+  in `rulesets.tf`, then set `paid_plan_features_enabled = true`.
 
-### Free fallback: same protection, applied per-repo
+### Free fallback: per-repo rulesets (public repos only)
 
 So you get branch protection *now*, on Free, `repo_rulesets.tf` applies the
-**same `organization_rulesets` definitions per repository** (repository
-rulesets are free for public *and* private repos; only org-wide rulesets need
-Team). The single `paid_plan_features_enabled` flag switches between the two,
-and exactly one path is ever active:
+**same `organization_rulesets` definitions per repository**. The single
+`paid_plan_features_enabled` flag switches between the two paths, and exactly
+one is ever active:
 
 | flag | active path | how it covers repos |
 |------|-------------|---------------------|
-| `false` (now) | per-repo `github_repository_ruleset` | enumerates org repos, one ruleset each |
-| `true` (after upgrade) | one `github_organization_ruleset` | `include_repos = ["~ALL"]` |
+| `false` (now) | per-repo `github_repository_ruleset` | enumerates org **public** repos, one ruleset per matching `organization_rulesets` definition |
+| `true` (after upgrade + uncomment) | one `github_organization_ruleset` | `include_repos = ["~ALL"]`, all repos incl. private |
 
-Flipping the flag and merging cleanly swaps them (the per-repo rulesets are
-destroyed and the org ruleset created in the same apply). The rule *definitions*
-live once in `organization_rulesets`, so both paths enforce identical rules.
+**Limitation — private repos are unprotected on Free.** Repository rulesets are
+free for **public** repos only; on a **private** repo the rulesets API returns
+`403 "Upgrade to GitHub Pro or make this repository public"`. The free fallback
+therefore enumerates public repos only (`is:public`), so private repos
+(`topos`, `topos-web`, `morphos`, `chloros-web-app`) get **no ruleset
+protection** until you upgrade to Team, uncomment the org ruleset, and flip the
+flag — at which point the org-wide ruleset covers private repos too.
+
+Uncommenting the org ruleset and flipping the flag (then merging) swaps them
+cleanly (the per-repo fallback rulesets are destroyed and the org ruleset
+created in the same apply). The rule *definitions* live once in
+`organization_rulesets`, so both paths enforce identical rules; only their
+**coverage** differs (free path: public repos; paid path: all repos).
 
 **Exclusions & the config repo.** Both paths honor each ruleset's
 `include_repos`/`exclude_repos`, and the free path also honors
@@ -150,9 +162,12 @@ few minutes for a brand-new repo (the daily drift run picks it up); the paid
 `~ALL` ruleset has no such lag. The free path also skips **archived** repos
 (harmless — archived repos are read-only, so a branch rule would be a no-op).
 
-To switch to the paid path: upgrade the org to Team, set
+To switch to the paid path: upgrade the org to Team, **uncomment the
+`github_organization_ruleset` resource in `rulesets.tf`**, set
 `paid_plan_features_enabled = true`, then commit and merge to `main` — CI
-applies it (don't `terraform apply` locally; see "State").
+applies it (don't `terraform apply` locally; see "State"). Setting the flag
+without uncommenting the resource only disables the free fallback and enforces
+nothing.
 
 ## Repository security
 
@@ -167,15 +182,21 @@ org-level), so enable the same features on any repo that predates them.
 provider current. Dependabot PRs run without repo secrets, so `terraform.yml`
 skips the App-token/plan steps for `dependabot[bot]` and only fmt/validates.
 
-The org defaults only cover *future* repos, so the two pre-existing repos
-(`topos`, `github-org`) are adopted in `security_repos.tf` and **drift-protected**:
-Terraform enforces their secret scanning, push protection, vulnerability alerts,
-Dependabot security updates, and visibility (so an unexpected visibility flip is
-reverted), while a broad `ignore_changes` leaves every other repo setting to you.
-To cover another **existing** repo, add it to `local.security_managed_repos` and,
-because the repo already exists, adopt it on the next apply with a temporary
-`import` block (or `terraform import` each address) — then remove the block. (The
-original import blocks were removed once the current repos were in state.)
+The org defaults only cover *future* repos, so the two pre-existing repos are
+adopted in `security_repos.tf` and **drift-protected**. `local.security_managed_repos`
+maps each repo to its intended visibility (`github-org` → `public`, `topos` →
+`private`), which Terraform enforces so an unexpected visibility flip is reverted.
+It also enforces vulnerability alerts and Dependabot security updates on both
+(free for private repos too), plus secret scanning + push protection on **public
+repos only** — those are GitHub Advanced Security features, free for public repos
+but not manageable on private repos on the Free plan (enabling them via the API
+403s). A broad
+`ignore_changes` leaves every other repo setting to you. To cover another
+**existing** repo, add a `"name" = "public"|"private"` entry to
+`local.security_managed_repos` and, because the repo already exists, adopt it on
+the next apply with a temporary `import` block (or `terraform import` each
+address) — then remove the block. (The original import blocks were removed once
+the current repos were in state.)
 
 ## Hardening backlog
 

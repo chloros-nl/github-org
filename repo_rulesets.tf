@@ -2,19 +2,40 @@
 #
 # Organization rulesets require the GitHub Team plan. On the Free plan we get
 # equivalent protection by applying a REPOSITORY ruleset to each repo
-# individually — repo rulesets are free for both public and private repos.
+# individually — but repo rulesets are free for PUBLIC repos only. On a private
+# repo the rulesets API returns 403 ("Upgrade to GitHub Pro or make this
+# repository public"), so this fallback covers public repos only; private repos
+# get no ruleset protection until the org-wide rulesets (rulesets.tf) are enabled
+# on Team, which DO cover private repos.
 #
 # This path and the org-ruleset path are driven by the SAME definitions
-# (var.organization_rulesets) and the SAME toggle, but inverted, so exactly one
-# is ever active and flipping the flag switches over cleanly:
+# (var.organization_rulesets). This free path activates while
+# paid_plan_features_enabled = false:
 #
-#   paid_plan_features_enabled = false  -> per-repo rulesets here (free)
-#   paid_plan_features_enabled = true   -> org rulesets in rulesets.tf (paid)
+#   paid_plan_features_enabled = false  -> per-repo rulesets here (free, public repos only)
+#   paid_plan_features_enabled = true   -> this fallback turns OFF
+#
+# NOTE: the org-wide ruleset in rulesets.tf is currently COMMENTED OUT (it 403s
+# on Free). Setting the flag to true alone turns this fallback off WITHOUT
+# enabling org rulesets — leaving repos unprotected. To switch to the paid path
+# you must BOTH uncomment the resource in rulesets.tf AND set the flag to true
+# (see the "TO ENABLE" header in rulesets.tf).
 
-# Enumerate the org's non-archived repos (only needed in fallback mode).
+# Enumerate the org's non-archived PUBLIC repos (only needed in fallback mode).
+# is:public is required: a repo ruleset on a private repo 403s on the Free plan,
+# which breaks both creating new fallback rulesets and refreshing existing ones.
+# Private repos are intentionally excluded from the free fallback.
+#
+# OPERATIONAL NOTE: if you make a currently-public repo PRIVATE on the Free plan,
+# it drops out of this enumeration and Terraform will try to DELETE its fallback
+# ruleset — which 403s, because the repo is now private. Before (or right after)
+# flipping a repo to private, run:
+#   terraform state rm 'github_repository_ruleset.fallback["<rs_name>:<repo>"]'
+# to drop the now-unmanageable ruleset from state (the orphaned ruleset on the
+# repo is harmless and is superseded by the org ruleset once you upgrade to Team).
 data "github_repositories" "all" {
   count           = var.paid_plan_features_enabled ? 0 : 1
-  query           = "org:${var.github_owner} archived:false"
+  query           = "org:${var.github_owner} archived:false is:public"
   include_repo_id = false
 }
 
@@ -26,7 +47,10 @@ locals {
   # org (paid) path: honor include_repos and exclude_repos, plus the fallback-only
   # opt-out list. NOTE: the org path matches include/exclude as GitHub fnmatch
   # patterns; this free path matches by EXACT repo name (and the "~ALL" wildcard)
-  # only — globs like "test-*" work on the paid path but not here.
+  # only — globs like "test-*" work on the paid path but not here. The free path
+  # also only ever sees PUBLIC repos (fallback_repo_names is filtered to is:public
+  # at the data source above), so "~ALL" here means "all public repos", whereas on
+  # the paid path it means all repos including private.
   # The repo hosting this config is excluded from the require_pull_request
   # ruleset (default-branch-protection's exclude_repos) because CI pushes state
   # straight to its default branch as github-actions[bot] — a PR-required rule

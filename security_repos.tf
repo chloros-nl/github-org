@@ -11,7 +11,15 @@
 # security updates use their dedicated resources.
 
 locals {
-  security_managed_repos = toset(["topos", "github-org"])
+  # repo name -> intended visibility. Drift-protects each repo's visibility, and
+  # (for PUBLIC repos) secret scanning + push protection. Secret scanning and
+  # push protection are GitHub Advanced Security features that are free only for
+  # PUBLIC repos; on a PRIVATE repo on the Free plan they cannot be managed
+  # (enabling them via the API 403s), so we enforce them on public repos only.
+  security_managed_repos = {
+    "topos"      = "private"
+    "github-org" = "public"
+  }
 }
 
 # (Resources were adopted via config-driven `import` blocks on first apply; those
@@ -23,14 +31,19 @@ resource "github_repository" "managed" {
   for_each = local.security_managed_repos
 
   name       = each.key
-  visibility = "public" # both repos are public; drift-protects visibility
+  visibility = each.value # drift-protects each repo's intended visibility
 
-  security_and_analysis {
-    secret_scanning {
-      status = "enabled"
-    }
-    secret_scanning_push_protection {
-      status = "enabled"
+  # Public repos only: secret scanning + push protection are GHAS features
+  # unavailable on private repos on the Free plan (see local comment above).
+  dynamic "security_and_analysis" {
+    for_each = each.value == "public" ? [1] : []
+    content {
+      secret_scanning {
+        status = "enabled"
+      }
+      secret_scanning_push_protection {
+        status = "enabled"
+      }
     }
   }
 

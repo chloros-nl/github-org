@@ -9,11 +9,11 @@ output "managed_teams" {
 }
 
 output "branch_protection_mode" {
-  description = "Which ruleset path is active."
-  value       = var.paid_plan_features_enabled ? "organization ruleset (paid)" : "per-repo fallback (free)"
+  description = "Which ruleset path the paid flag selects. NOTE: the org ruleset is commented out in rulesets.tf, so the paid value enforces nothing until that resource is uncommented — an on flag alone just disables the free fallback."
+  value       = var.paid_plan_features_enabled ? "paid flag on (org ruleset enforces only if uncommented in rulesets.tf)" : "per-repo fallback (free, public repos only)"
 }
 
 output "fallback_protected_repos" {
-  description = "Repos covered by the free per-repo ruleset fallback (empty when on the paid org-ruleset path)."
-  value       = sort([for k in keys(github_repository_ruleset.fallback) : github_repository_ruleset.fallback[k].repository])
+  description = "Public repos covered by the free per-repo ruleset fallback (private repos are excluded on Free). Empty when paid_plan_features_enabled = true, which disables this fallback — protection then depends on the org ruleset in rulesets.tf, which must be uncommented to enforce (an empty list does not by itself mean the paid path is active)."
+  value       = sort(distinct([for k in keys(github_repository_ruleset.fallback) : github_repository_ruleset.fallback[k].repository]))
 }

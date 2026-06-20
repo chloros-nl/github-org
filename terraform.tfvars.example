@@ -29,8 +29,12 @@ actions_allowed_actions_config = {
 }
 
 # Branch protection. The SAME organization_rulesets definitions drive both:
-#   paid_plan_features_enabled = true  -> one org-wide ruleset (needs Team)
-#   paid_plan_features_enabled = false -> the same rule applied per-repo (free)
+#   paid_plan_features_enabled = true  -> one org-wide ruleset (needs Team; the
+#                                         resource is commented out in rulesets.tf
+#                                         and must be uncommented to enforce)
+#   paid_plan_features_enabled = false -> the same rules applied per-repo (free,
+#                                         PUBLIC repos only; private repos can't
+#                                         have rulesets on Free)
 paid_plan_features_enabled = false
 
 # Blunt global opt-out across all free rulesets; prefer per-ruleset scoping.
