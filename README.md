@@ -97,17 +97,20 @@ Some org-wide controls require a **paid GitHub plan (Team or higher)**. The
 `chloros-nl` org is currently on **Free**, where the org rulesets API returns
 `403 "Upgrade to GitHub Team to enable this feature"`.
 
-These are written and ready in `terraform.tfvars`, but gated behind a single
-flag so they never break `apply` on the free plan:
+The paid resources are **commented out** in their `.tf` files so they never
+reach the API on Free, and the `paid_plan_features_enabled` flag stays `false`:
 
 ```hcl
-paid_plan_features_enabled = false   # flip to true after upgrading to Team
+paid_plan_features_enabled = false   # see each paid resource's "TO ENABLE" header
 ```
 
-- **`organization_rulesets`** — org-wide branch protection on every repo's
-  default branch (require PR, block force-push, block deletion, require
-  conversation resolution; org admins can bypass). While the flag is `false`,
-  Terraform makes **no rulesets API call**, so there's no 403.
+- **`organization_rulesets`** (`rulesets.tf`) — org-wide branch protection on
+  every repo's default branch (require PR, block force-push, block deletion,
+  require conversation resolution; org admins can bypass). The
+  `github_organization_ruleset` resource is **commented out**; the rule
+  definitions in `var.organization_rulesets` are still consumed by the free
+  per-repo fallback below. To enable: upgrade to Team, **uncomment the resource**
+  in `rulesets.tf`, then set `paid_plan_features_enabled = true`.
 
 ### Free fallback: per-repo rulesets (public repos only)
 
@@ -119,20 +122,21 @@ one is ever active:
 | flag | active path | how it covers repos |
 |------|-------------|---------------------|
 | `false` (now) | per-repo `github_repository_ruleset` | enumerates org **public** repos, one ruleset each |
-| `true` (after upgrade) | one `github_organization_ruleset` | `include_repos = ["~ALL"]`, all repos incl. private |
+| `true` (after upgrade + uncomment) | one `github_organization_ruleset` | `include_repos = ["~ALL"]`, all repos incl. private |
 
 **Limitation — private repos are unprotected on Free.** Repository rulesets are
 free for **public** repos only; on a **private** repo the rulesets API returns
 `403 "Upgrade to GitHub Pro or make this repository public"`. The free fallback
 therefore enumerates public repos only (`is:public`), so private repos
 (`topos`, `topos-web`, `morphos`, `chloros-web-app`) get **no ruleset
-protection** until you upgrade to Team and flip the flag — at which point the
-org-wide ruleset covers private repos too.
+protection** until you upgrade to Team, uncomment the org ruleset, and flip the
+flag — at which point the org-wide ruleset covers private repos too.
 
-Flipping the flag and merging cleanly swaps them (the per-repo rulesets are
-destroyed and the org ruleset created in the same apply). The rule *definitions*
-live once in `organization_rulesets`, so both paths enforce identical rules;
-only their **coverage** differs (free path: public repos; paid path: all repos).
+Uncommenting the org ruleset and flipping the flag (then merging) swaps them
+cleanly (the per-repo fallback rulesets are destroyed and the org ruleset
+created in the same apply). The rule *definitions* live once in
+`organization_rulesets`, so both paths enforce identical rules; only their
+**coverage** differs (free path: public repos; paid path: all repos).
 
 **Exclusions & the config repo.** Both paths honor each ruleset's
 `include_repos`/`exclude_repos`, and the free path also honors
