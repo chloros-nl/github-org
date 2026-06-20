@@ -8,6 +8,14 @@ output "managed_teams" {
   value       = sort(keys(github_team.this))
 }
 
+# Commented out with the paid runner-group resource in runner_groups.tf — the
+# github_actions_runner_group resource it reads does not exist on Free. Uncomment
+# both together after upgrading to GitHub Team.
+# output "managed_runner_groups" {
+#   description = "Self-hosted runner groups under Terraform management."
+#   value       = sort(keys(github_actions_runner_group.this))
+# }
+
 output "branch_protection_mode" {
   description = "Which ruleset path the paid flag selects. NOTE: the org ruleset is commented out in rulesets.tf, so the paid value enforces nothing until that resource is uncommented — an on flag alone just disables the free fallback."
   value       = var.paid_plan_features_enabled ? "paid flag on (org ruleset enforces only if uncommented in rulesets.tf)" : "per-repo fallback (free, public repos only)"
