@@ -14,9 +14,8 @@ locals {
   # repo name -> intended visibility. Drift-protects each repo's visibility, and
   # (for PUBLIC repos) secret scanning + push protection. Secret scanning and
   # push protection are GitHub Advanced Security features that are free only for
-  # PUBLIC repos; on a PRIVATE repo on the Free plan they are unavailable
-  # (security_and_analysis comes back null and enabling them 403s), so we enforce
-  # them on public repos only.
+  # PUBLIC repos; on a PRIVATE repo on the Free plan they cannot be managed
+  # (enabling them via the API 403s), so we enforce them on public repos only.
   security_managed_repos = {
     "topos"      = "private"
     "github-org" = "public"
