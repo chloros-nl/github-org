@@ -210,6 +210,14 @@ variable "actions_runner_groups" {
     ])
     error_message = "When restricted_to_workflows = true, selected_workflows must list at least one workflow (otherwise no workflow can use the group)."
   }
+
+  validation {
+    condition = alltrue([
+      for g in values(var.actions_runner_groups) :
+      length(g.selected_workflows) == 0 || g.restricted_to_workflows
+    ])
+    error_message = "selected_workflows is only valid when restricted_to_workflows = true (otherwise it is silently ignored)."
+  }
 }
 
 variable "teams" {
