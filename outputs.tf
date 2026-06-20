@@ -9,8 +9,8 @@ output "managed_teams" {
 }
 
 output "branch_protection_mode" {
-  description = "Which ruleset path is active."
-  value       = var.paid_plan_features_enabled ? "organization ruleset (paid)" : "per-repo fallback (free)"
+  description = "Which ruleset path the paid flag selects. NOTE: the org ruleset is commented out in rulesets.tf, so the paid value enforces nothing until that resource is uncommented — an on flag alone just disables the free fallback."
+  value       = var.paid_plan_features_enabled ? "paid flag on (org ruleset enforces only if uncommented in rulesets.tf)" : "per-repo fallback (free)"
 }
 
 output "fallback_protected_repos" {

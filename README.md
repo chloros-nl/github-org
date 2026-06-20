@@ -162,9 +162,12 @@ few minutes for a brand-new repo (the daily drift run picks it up); the paid
 `~ALL` ruleset has no such lag. The free path also skips **archived** repos
 (harmless — archived repos are read-only, so a branch rule would be a no-op).
 
-To switch to the paid path: upgrade the org to Team, set
+To switch to the paid path: upgrade the org to Team, **uncomment the
+`github_organization_ruleset` resource in `rulesets.tf`**, set
 `paid_plan_features_enabled = true`, then commit and merge to `main` — CI
-applies it (don't `terraform apply` locally; see "State").
+applies it (don't `terraform apply` locally; see "State"). Setting the flag
+without uncommenting the resource only disables the free fallback and enforces
+nothing.
 
 ## Repository security
 
