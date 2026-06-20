@@ -109,22 +109,30 @@ paid_plan_features_enabled = false   # flip to true after upgrading to Team
   conversation resolution; org admins can bypass). While the flag is `false`,
   Terraform makes **no rulesets API call**, so there's no 403.
 
-### Free fallback: same protection, applied per-repo
+### Free fallback: per-repo rulesets (public repos only)
 
 So you get branch protection *now*, on Free, `repo_rulesets.tf` applies the
-**same `organization_rulesets` definitions per repository** (repository
-rulesets are free for public *and* private repos; only org-wide rulesets need
-Team). The single `paid_plan_features_enabled` flag switches between the two,
-and exactly one path is ever active:
+**same `organization_rulesets` definitions per repository**. The single
+`paid_plan_features_enabled` flag switches between the two paths, and exactly
+one is ever active:
 
 | flag | active path | how it covers repos |
 |------|-------------|---------------------|
-| `false` (now) | per-repo `github_repository_ruleset` | enumerates org repos, one ruleset each |
-| `true` (after upgrade) | one `github_organization_ruleset` | `include_repos = ["~ALL"]` |
+| `false` (now) | per-repo `github_repository_ruleset` | enumerates org **public** repos, one ruleset each |
+| `true` (after upgrade) | one `github_organization_ruleset` | `include_repos = ["~ALL"]`, all repos incl. private |
+
+**Limitation — private repos are unprotected on Free.** Repository rulesets are
+free for **public** repos only; on a **private** repo the rulesets API returns
+`403 "Upgrade to GitHub Pro or make this repository public"`. The free fallback
+therefore enumerates public repos only (`is:public`), so private repos
+(`topos`, `topos-web`, `morphos`, `chloros-web-app`) get **no ruleset
+protection** until you upgrade to Team and flip the flag — at which point the
+org-wide ruleset covers private repos too.
 
 Flipping the flag and merging cleanly swaps them (the per-repo rulesets are
 destroyed and the org ruleset created in the same apply). The rule *definitions*
-live once in `organization_rulesets`, so both paths enforce identical rules.
+live once in `organization_rulesets`, so both paths enforce identical rules;
+only their **coverage** differs (free path: public repos; paid path: all repos).
 
 **Exclusions & the config repo.** Both paths honor each ruleset's
 `include_repos`/`exclude_repos`, and the free path also honors
