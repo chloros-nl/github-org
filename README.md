@@ -115,17 +115,21 @@ paid_plan_features_enabled = false   # see each paid resource's "TO ENABLE" head
   definitions in `var.organization_rulesets` are still consumed by the free
   per-repo fallback below. To enable: upgrade to Team, **uncomment the resource**
   in `rulesets.tf`, then set `paid_plan_features_enabled = true`.
-- **`actions_runner_groups`** — org-level self-hosted runner groups, used to
-  scope a set of self-hosted runners to specific repos (`visibility`) and
-  workflows (`restricted_to_workflows`). Creating groups beyond the built-in
-  **Default** group requires Team; while the flag is `false` Terraform creates
-  no group and makes no API call. **Unlike rulesets there is no free fallback** —
-  on Free, register runners into the Default group (no Terraform needed). This
-  manages the *group* only; the runner **agent** is a daemon installed on a host
-  (`./config.sh --runner-group "<name>" ...`), provisioned out of band. Keep
-  `allows_public_repositories = false` so a public-repo PR can't run untrusted
-  code on the runner host, and prefer `visibility = "selected"` /
-  `restricted_to_workflows` to limit blast radius.
+- **`actions_runner_groups`** (`runner_groups.tf`) — org-level self-hosted
+  runner groups, used to scope a set of self-hosted runners to specific repos
+  (`visibility`) and workflows (`restricted_to_workflows`). Creating groups
+  beyond the built-in **Default** group requires Team, so the
+  `github_actions_runner_group` resource (and its `managed_runner_groups`
+  output) is **commented out**. **Unlike rulesets there is no free fallback** —
+  on Free, register runners into the Default group (no Terraform needed). To
+  enable: upgrade to Team, uncomment the resource in `runner_groups.tf` and the
+  output in `outputs.tf`, then set `paid_plan_features_enabled = true` and add
+  groups to `actions_runner_groups`. This manages the *group* only; the runner
+  **agent** is a daemon installed on a host (`./config.sh --runner-group
+  "<name>" ...`), provisioned out of band. Keep `allows_public_repositories =
+  false` so a public-repo PR can't run untrusted code on the runner host, and
+  prefer `visibility = "selected"` / `restricted_to_workflows` to limit blast
+  radius.
 
 ### Free fallback: per-repo rulesets (public repos only)
 
