@@ -166,8 +166,10 @@ variable "fallback_excluded_repos" {
 }
 
 # --- Org self-hosted runner groups (PAID: requires GitHub Team plan) ---------
-# Gated by var.paid_plan_features_enabled. On Free, creating additional runner
-# groups returns 403 — use the built-in "Default" group instead.
+# On Free, creating additional runner groups returns 403 — use the built-in
+# "Default" group instead. The github_actions_runner_group resource is
+# COMMENTED OUT in runner_groups.tf, so this variable has no effect until that
+# resource is uncommented (and paid_plan_features_enabled = true) on Team.
 variable "actions_runner_groups" {
   description = "Org-level self-hosted runner groups keyed by group name. Manages the access-scoping group only (not the runner agent on the host). Empty = none (no API call)."
   type = map(object({
