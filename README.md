@@ -121,7 +121,7 @@ one is ever active:
 
 | flag | active path | how it covers repos |
 |------|-------------|---------------------|
-| `false` (now) | per-repo `github_repository_ruleset` | enumerates org **public** repos, one ruleset each |
+| `false` (now) | per-repo `github_repository_ruleset` | enumerates org **public** repos, one ruleset per matching `organization_rulesets` definition |
 | `true` (after upgrade + uncomment) | one `github_organization_ruleset` | `include_repos = ["~ALL"]`, all repos incl. private |
 
 **Limitation — private repos are unprotected on Free.** Repository rulesets are
