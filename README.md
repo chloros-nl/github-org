@@ -20,6 +20,7 @@ and left to each repo.
 | `actions.tf` | `github_actions_organization_permissions` (org-wide Actions policy) |
 | `rulesets.tf` | `github_organization_ruleset` (org-wide branch rules — **paid**, gated) |
 | `repo_rulesets.tf` | `github_repository_ruleset` per repo (free fallback, active when the paid flag is off) |
+| `runner_groups.tf` | `github_actions_runner_group` (org self-hosted runner groups — **paid**, gated) |
 | `security_repos.tf` | Drift-protects security + visibility on the pre-existing repos |
 | `teams.tf` | Teams + memberships (org-level) |
 | `outputs.tf` | Convenience outputs |
@@ -46,6 +47,9 @@ and left to each repo.
   - **Organization → Administration: Read & write** — org settings, Actions
     policy, and the *paid* org-wide ruleset.
   - **Organization → Members: Read & write** — only if you manage `teams`.
+  - **Organization → Self-hosted runners: Read & write** — only if you manage
+    `actions_runner_groups` (the *paid* runner-group path). Repo→Metadata (below)
+    covers resolving the `selected_repositories` names to IDs.
   - **Repository → Administration: Read & write** — **required for the free
     per-repo ruleset fallback** (`repo_rulesets.tf`). Creating a *repository*
     ruleset is a repo-admin action; without it the App gets
@@ -111,6 +115,17 @@ paid_plan_features_enabled = false   # see each paid resource's "TO ENABLE" head
   definitions in `var.organization_rulesets` are still consumed by the free
   per-repo fallback below. To enable: upgrade to Team, **uncomment the resource**
   in `rulesets.tf`, then set `paid_plan_features_enabled = true`.
+- **`actions_runner_groups`** — org-level self-hosted runner groups, used to
+  scope a set of self-hosted runners to specific repos (`visibility`) and
+  workflows (`restricted_to_workflows`). Creating groups beyond the built-in
+  **Default** group requires Team; while the flag is `false` Terraform creates
+  no group and makes no API call. **Unlike rulesets there is no free fallback** —
+  on Free, register runners into the Default group (no Terraform needed). This
+  manages the *group* only; the runner **agent** is a daemon installed on a host
+  (`./config.sh --runner-group "<name>" ...`), provisioned out of band. Keep
+  `allows_public_repositories = false` so a public-repo PR can't run untrusted
+  code on the runner host, and prefer `visibility = "selected"` /
+  `restricted_to_workflows` to limit blast radius.
 
 ### Free fallback: per-repo rulesets (public repos only)
 

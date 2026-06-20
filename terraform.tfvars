@@ -78,4 +78,10 @@ organization_rulesets = {
   }
 }
 
+# Org self-hosted runner groups (PAID: requires GitHub Team). Empty on Free —
+# register runners into the built-in "Default" group instead. See
+# terraform.tfvars.example for the shape, then add a group here once on Team and
+# a runner host exists. Activates with paid_plan_features_enabled = true.
+actions_runner_groups = {}
+
 teams = {}

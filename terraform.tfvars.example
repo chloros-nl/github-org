@@ -67,6 +67,24 @@ organization_rulesets = {
   }
 }
 
+# Org self-hosted runner groups (PAID: requires GitHub Team; gated by
+# paid_plan_features_enabled). Manages the access-scoping GROUP only — install
+# the runner agent on the host separately with `./config.sh --runner-group
+# "<name>"`. On Free, omit this and use the built-in "Default" group.
+actions_runner_groups = {
+  "self-hosted-linux" = {
+    visibility            = "selected" # all | selected | private
+    selected_repositories = ["topos"]  # repo NAMES; only when visibility = "selected"
+
+    # Leave false: a public-repo PR could run untrusted code on the runner host.
+    allows_public_repositories = false
+
+    # Optionally restrict which workflows may run on this group.
+    restricted_to_workflows = true
+    selected_workflows      = ["chloros-nl/topos/.github/workflows/ci.yml@refs/heads/main"]
+  }
+}
+
 teams = {
   maintainers = {
     description = "Org maintainers"
