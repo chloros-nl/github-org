@@ -179,15 +179,21 @@ org-level), so enable the same features on any repo that predates them.
 provider current. Dependabot PRs run without repo secrets, so `terraform.yml`
 skips the App-token/plan steps for `dependabot[bot]` and only fmt/validates.
 
-The org defaults only cover *future* repos, so the two pre-existing repos
-(`topos`, `github-org`) are adopted in `security_repos.tf` and **drift-protected**:
-Terraform enforces their secret scanning, push protection, vulnerability alerts,
-Dependabot security updates, and visibility (so an unexpected visibility flip is
-reverted), while a broad `ignore_changes` leaves every other repo setting to you.
-To cover another **existing** repo, add it to `local.security_managed_repos` and,
-because the repo already exists, adopt it on the next apply with a temporary
-`import` block (or `terraform import` each address) — then remove the block. (The
-original import blocks were removed once the current repos were in state.)
+The org defaults only cover *future* repos, so the two pre-existing repos are
+adopted in `security_repos.tf` and **drift-protected**. `local.security_managed_repos`
+maps each repo to its intended visibility (`github-org` → `public`, `topos` →
+`private`), which Terraform enforces so an unexpected visibility flip is reverted.
+It also enforces vulnerability alerts and Dependabot security updates on both
+(free for private repos too), plus secret scanning + push protection on **public
+repos only** — those are GitHub Advanced Security features, free for public repos
+but unavailable on private repos on the Free plan (a private repo's
+`security_and_analysis` comes back null and enabling it 403s). A broad
+`ignore_changes` leaves every other repo setting to you. To cover another
+**existing** repo, add a `"name" = "public"|"private"` entry to
+`local.security_managed_repos` and, because the repo already exists, adopt it on
+the next apply with a temporary `import` block (or `terraform import` each
+address) — then remove the block. (The original import blocks were removed once
+the current repos were in state.)
 
 ## Hardening backlog
 
