@@ -165,62 +165,11 @@ variable "fallback_excluded_repos" {
   default     = []
 }
 
-# --- Org self-hosted runner groups (PAID: requires GitHub Team plan) ---------
-# On Free, creating additional runner groups returns 403 — use the built-in
-# "Default" group instead. The github_actions_runner_group resource is
-# COMMENTED OUT in runner_groups.tf, so this variable has no effect until that
-# resource is uncommented (and paid_plan_features_enabled = true) on Team.
-variable "actions_runner_groups" {
-  description = "Org-level self-hosted runner groups keyed by group name. Manages the access-scoping group only (not the runner agent on the host). Empty = none (no API call)."
-  type = map(object({
-    visibility                 = optional(string, "selected") # all | selected | private
-    selected_repositories      = optional(list(string), [])   # repo NAMES; only used when visibility = "selected"
-    allows_public_repositories = optional(bool, false)        # keep false: don't expose self-hosted runners to public-repo PR code
-    restricted_to_workflows    = optional(bool, false)
-    selected_workflows         = optional(list(string), []) # only used when restricted_to_workflows = true
-  }))
-  default = {}
-
-  validation {
-    condition = alltrue([
-      for g in values(var.actions_runner_groups) :
-      contains(["all", "selected", "private"], g.visibility)
-    ])
-    error_message = "Each runner group's visibility must be one of: all, selected, private."
-  }
-
-  validation {
-    condition = alltrue([
-      for g in values(var.actions_runner_groups) :
-      length(g.selected_repositories != null ? g.selected_repositories : []) == 0 || g.visibility == "selected"
-    ])
-    error_message = "selected_repositories is only valid when visibility = \"selected\"."
-  }
-
-  validation {
-    condition = alltrue([
-      for g in values(var.actions_runner_groups) :
-      g.visibility != "selected" || length(g.selected_repositories != null ? g.selected_repositories : []) > 0
-    ])
-    error_message = "A runner group with visibility = \"selected\" must list at least one repository in selected_repositories (a selected group with no repos is usable by nothing)."
-  }
-
-  validation {
-    condition = alltrue([
-      for g in values(var.actions_runner_groups) :
-      !g.restricted_to_workflows || length(g.selected_workflows != null ? g.selected_workflows : []) > 0
-    ])
-    error_message = "When restricted_to_workflows = true, selected_workflows must list at least one workflow (otherwise no workflow can use the group)."
-  }
-
-  validation {
-    condition = alltrue([
-      for g in values(var.actions_runner_groups) :
-      length(g.selected_workflows != null ? g.selected_workflows : []) == 0 || g.restricted_to_workflows
-    ])
-    error_message = "selected_workflows is only valid when restricted_to_workflows = true (otherwise it is silently ignored)."
-  }
-}
+# Self-hosted runners are intentionally NOT managed here. The provider can only
+# manage runner GROUPS (the paid access-scoping containers), not the runner
+# agents themselves. On Free, register self-hosted runners into the org's
+# built-in "Default" group out of band (`./config.sh --url ... --token ...`) —
+# no Terraform resource exists for the runner agent. See the README.
 
 variable "teams" {
   description = "Teams managed by Terraform, keyed by team name. Org-level; repo access grants are intentionally out of scope."
