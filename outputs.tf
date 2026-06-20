@@ -14,6 +14,6 @@ output "branch_protection_mode" {
 }
 
 output "fallback_protected_repos" {
-  description = "Public repos covered by the free per-repo ruleset fallback (private repos are excluded on Free; empty when on the paid org-ruleset path)."
+  description = "Public repos covered by the free per-repo ruleset fallback (private repos are excluded on Free). Empty when paid_plan_features_enabled = true, which disables this fallback — protection then depends on the org ruleset in rulesets.tf, which must be uncommented to enforce (an empty list does not by itself mean the paid path is active)."
   value       = sort(distinct([for k in keys(github_repository_ruleset.fallback) : github_repository_ruleset.fallback[k].repository]))
 }
