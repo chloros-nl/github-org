@@ -28,7 +28,7 @@ jobs:
   terraform:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       # GitHub App token for the Terraform provider (Organization
       # administration + members). Scoped to the plan/apply steps only via
